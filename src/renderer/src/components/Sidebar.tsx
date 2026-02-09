@@ -43,7 +43,7 @@ export default function Sidebar() {
     }
 
     return (
-        <div className="w-72 bg-card/50 backdrop-blur-xl border-r border-border h-screen flex flex-col p-6 transition-all duration-300">
+        <div id="sidebar" className="w-72 bg-card/50 backdrop-blur-xl border-r border-border h-screen flex flex-col p-6 transition-all duration-300">
             <div className="mb-6 px-2 flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
                     <div className="h-4 w-4 rounded-full bg-primary shadow-lg shadow-primary/50 animate-pulse" />
@@ -55,6 +55,7 @@ export default function Sidebar() {
 
             {/* Global Search Button */}
             <button
+                id="global-search"
                 onClick={openGlobalSearch}
                 className="flex items-center gap-3 px-4 py-2.5 mb-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all group"
             >
@@ -65,7 +66,7 @@ export default function Sidebar() {
                 </kbd>
             </button>
 
-            <nav className="space-y-2 flex-1">
+            <nav id="sidebar-nav" className="space-y-2 flex-1">
                 {navItems.map((item) => (
                     <NavLink
                         key={item.path}
@@ -110,6 +111,7 @@ export default function Sidebar() {
 
             <div className="pt-4 border-t border-border/50">
                 <NavLink
+                    id="sidebar-settings"
                     to="/settings"
                     className={({ isActive }) =>
                         cn(

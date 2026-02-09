@@ -959,7 +959,7 @@ export default function Orders() {
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Export Dropdown */}
-                    <div className="relative group">
+                    <div id="orders-export-btn" className="relative group">
                         <button
                             className="h-10 px-4 rounded-full font-medium transition-all border border-border hover:bg-white/5 flex items-center gap-2 text-sm"
                         >
@@ -1026,7 +1026,7 @@ export default function Orders() {
                     </div>
 
                     {/* Novo Pedido com Dropdown */}
-                    <div className="relative" ref={newOrderMenuRef}>
+                    <div id="orders-new-btn-container" className="relative" ref={newOrderMenuRef}>
                         <button
                             onClick={() => setShowNewOrderMenu(!showNewOrderMenu)}
                             className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-5 rounded-full font-medium transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 flex items-center gap-2 text-sm"
@@ -1096,7 +1096,7 @@ export default function Orders() {
 
             {/* Toolbar */}
             <div className="flex items-center gap-4 bg-card/50 p-2 rounded-xl border border-border/50">
-                <div className="relative flex-1">
+                <div id="orders-search" className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                     <input
                         ref={searchInputRef}
@@ -1123,7 +1123,7 @@ export default function Orders() {
                 >
                     <Star size={18} fill={showFavoritesOnly ? "currentColor" : "none"} />
                 </button>
-                <div className="relative" ref={filterRef}>
+                <div id="orders-filters" className="relative" ref={filterRef}>
                     <button
                         onClick={() => setShowFilterMenu(!showFilterMenu)}
                         className={`p-2 rounded-lg transition-colors ${statusFilter !== 'Todos' || dateFilter !== 'Todos' || showFilterMenu ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}

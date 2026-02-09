@@ -254,6 +254,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex gap-2">
                     <button
+                        id="btn-new-task"
                         onClick={() => setIsTaskModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-200 text-sm font-medium transition-colors border border-white/10"
                     >
@@ -261,6 +262,7 @@ export default function Dashboard() {
                         Nova Tarefa
                     </button>
                     <button
+                        id="btn-new-order"
                         onClick={() => setIsOrderModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors shadow-lg shadow-primary/20"
                     >
@@ -271,7 +273,7 @@ export default function Dashboard() {
             </div>
 
             {/* Main Financial Stats Row */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div id="dashboard-stats" className="grid gap-4 md:grid-cols-3">
                 {/* Total Value Card */}
                 <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-6 group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">

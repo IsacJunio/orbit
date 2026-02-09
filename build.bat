@@ -1,19 +1,19 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
-title Orbit - Build System v6.3 (No-Admin)
+title Orbit - Build System v6.4 (No-Admin)
 
 :: ============================================
 :: CONFIGURAÇÕES - ATUALIZADO EM 09/02/2026
 :: ============================================
-set "VERSION=1.4.0"
+set "VERSION=1.5.0"
 set "PROJECT_DIR=%~dp0"
 set "TEMP_BUILD=C:\temp\OrbitBuild"
 
 cls
 echo.
 echo    ╔═══════════════════════════════════════════════════════════╗
-echo    ║       ORBIT BUILD SYSTEM v6.3 - SEM ADMINISTRADOR         ║
+echo    ║       ORBIT BUILD SYSTEM v6.4 - SEM ADMINISTRADOR         ║
 echo    ╠═══════════════════════════════════════════════════════════╣
 echo    ║   Versao: %VERSION%                                          ║
 echo    ║   Metodo: Build em pasta local (fora do OneDrive)         ║

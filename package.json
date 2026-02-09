@@ -1,6 +1,6 @@
 {
     "name": "orbit",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "description": "Gerenciamento de Pedidos SAP, Tarefas e Automação SAP",
     "main": "./out/main/index.js",
     "author": "Orbit",
@@ -15,6 +15,7 @@
     "dependencies": {
         "archiver": "^7.0.0",
         "clsx": "^2.1.0",
+        "driver.js": "^1.4.0",
         "exceljs": "^4.4.0",
         "jspdf": "^4.0.0",
         "jspdf-autotable": "^5.0.2",

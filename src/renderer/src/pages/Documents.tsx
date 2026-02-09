@@ -322,12 +322,13 @@ export default function Documents() {
     // Main folder list view
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
+            <div id="docs-header" className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-foreground">Documentos</h2>
                     <p className="text-muted-foreground text-sm">Organize e gerencie seus arquivos.</p>
                 </div>
                 <button
+                    id="docs-new-folder-btn"
                     onClick={() => setIsModalOpen(true)}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-5 rounded-full font-medium transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 flex items-center gap-2 text-sm"
                 >
@@ -338,7 +339,7 @@ export default function Documents() {
 
             {/* Search */}
             <div className="flex items-center gap-4 bg-card/50 p-2 rounded-xl border border-border/50">
-                <div className="relative flex-1">
+                <div id="docs-search" className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                     <input
                         type="text"
@@ -351,52 +352,54 @@ export default function Documents() {
             </div>
 
             {/* Folders by Category */}
-            {Object.keys(groupedDocs).length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border/50 bg-card/30 p-12 text-center">
-                    <Folder size={48} className="mx-auto text-muted-foreground/50 mb-4" />
-                    <p className="text-muted-foreground">Nenhuma pasta encontrada.</p>
-                    <p className="text-sm text-muted-foreground/70 mt-1">Crie uma pasta ou adicione um pedido de compra.</p>
-                </div>
-            ) : (
-                Object.entries(groupedDocs).map(([category, docs]) => (
-                    <div key={category} className="space-y-3">
-                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                            <FolderOpen size={16} />
-                            {category} ({docs.length})
-                        </h3>
-                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {docs.map((doc) => (
-                                <div
-                                    key={doc.id}
-                                    onClick={() => setCurrentFolder(doc)}
-                                    className="group rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-4 hover:border-primary/30 transition-all cursor-pointer"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className="p-2 rounded-lg bg-primary/10">
-                                            <Folder size={20} className="text-primary" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-foreground truncate">{doc.name}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {realFileCounts[doc.id] ?? (doc.files?.length || 0)} arquivo(s)
-                                            </p>
-                                            {doc.orderNumber && (
-                                                <p className="text-xs text-primary/70 mt-1">SAP: {doc.orderNumber}</p>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); deleteDocument(doc.id); }}
-                                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all p-1"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+            <div id="docs-folder-list">
+                {Object.keys(groupedDocs).length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border/50 bg-card/30 p-12 text-center">
+                        <Folder size={48} className="mx-auto text-muted-foreground/50 mb-4" />
+                        <p className="text-muted-foreground">Nenhuma pasta encontrada.</p>
+                        <p className="text-sm text-muted-foreground/70 mt-1">Crie uma pasta ou adicione um pedido de compra.</p>
                     </div>
-                ))
-            )}
+                ) : (
+                    Object.entries(groupedDocs).map(([category, docs]) => (
+                        <div key={category} className="space-y-3 mb-6">
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                <FolderOpen size={16} />
+                                {category} ({docs.length})
+                            </h3>
+                            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                {docs.map((doc) => (
+                                    <div
+                                        key={doc.id}
+                                        onClick={() => setCurrentFolder(doc)}
+                                        className="group rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-4 hover:border-primary/30 transition-all cursor-pointer"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="p-2 rounded-lg bg-primary/10">
+                                                <Folder size={20} className="text-primary" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-foreground truncate">{doc.name}</p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {realFileCounts[doc.id] ?? (doc.files?.length || 0)} arquivo(s)
+                                                </p>
+                                                {doc.orderNumber && (
+                                                    <p className="text-xs text-primary/70 mt-1">SAP: {doc.orderNumber}</p>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); deleteDocument(doc.id); }}
+                                                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all p-1"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
 
             {/* Create Folder Modal */}
             {isModalOpen && (

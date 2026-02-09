@@ -265,12 +265,13 @@ export default function Suppliers() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between flex-wrap gap-3">
+            <div id="suppliers-header" className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-foreground">Fornecedores</h2>
                     <p className="text-muted-foreground text-sm">Gerencie sua lista de contatos e empresas parceiras.</p>
                 </div>
                 <button
+                    id="suppliers-new-btn"
                     onClick={() => {
                         setIsEditing(false)
                         setEditingId(null)
@@ -285,7 +286,7 @@ export default function Suppliers() {
             </div>
 
             {/* Search */}
-            <div className="relative">
+            <div id="suppliers-search" className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                 <input
                     type="text"
@@ -297,7 +298,7 @@ export default function Suppliers() {
             </div>
 
             {/* Grid de Fornecedores */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div id="suppliers-grid" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredSuppliers.map(supplier => (
                     <div key={supplier.id} className="group bg-card/50 border border-border/50 hover:border-primary/50 p-4 rounded-xl transition-all relative">
                         <div className="flex items-start justify-between">
@@ -381,7 +382,7 @@ export default function Suppliers() {
             </div>
 
             {/* Seção de Lista de Códigos SAP */}
-            <div className="bg-card/50 border border-border/50 rounded-xl p-6 space-y-4">
+            <div id="suppliers-sap-list" className="bg-card/50 border border-border/50 rounded-xl p-6 space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-semibold text-foreground">Lista de Códigos SAP</h3>

@@ -331,7 +331,7 @@ export default function Tasks() {
                     <p className="text-muted-foreground text-sm">Calendário semanal - Arraste para reorganizar.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1 bg-card/50 rounded-lg border border-border/50 p-1">
+                    <div id="tasks-week-nav" className="flex items-center gap-1 bg-card/50 rounded-lg border border-border/50 p-1">
                         <button
                             onClick={() => navigateWeek(-1)}
                             className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
@@ -357,6 +357,7 @@ export default function Tasks() {
                         {weekDates[0].toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' })} - {weekDates[6].toLocaleDateString('pt-BR', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                     <button
+                        id="tasks-new-btn"
                         onClick={() => openNewTaskModal()}
                         className="bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 rounded-full font-medium transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 flex items-center gap-1.5 text-sm"
                     >
@@ -368,7 +369,7 @@ export default function Tasks() {
             </div>
 
             {/* Calendar Grid */}
-            <div className="flex-1 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden flex flex-col min-h-0">
+            <div id="tasks-grid" className="flex-1 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden flex flex-col min-h-0">
                 {/* Wrapper para scroll */}
                 <div className="flex-1 overflow-auto" ref={calendarRef} style={{ cursor: dragState ? 'grabbing' : 'default' }}>
                     <div className="min-w-[600px]">
