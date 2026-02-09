@@ -1,0 +1,254 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  background-color: #09090b;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 0 72% 51%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 0 72% 51%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom styles */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-item-active {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Compact Mode Styles */
+.compact-mode .p-8 {
+  padding: 1rem !important;
+}
+
+.compact-mode .p-6 {
+  padding: 0.75rem !important;
+}
+
+.compact-mode .gap-6 {
+  gap: 0.75rem !important;
+}
+
+.compact-mode .space-y-8 {
+  @apply space-y-4 !important;
+}
+
+.compact-mode .text-3xl {
+  font-size: 1.5rem !important;
+}
+
+.compact-mode table td,
+.compact-mode table th {
+  padding: 0.625rem !important;
+}
+
+@page {
+  margin: 0;
+  size: auto;
+}
+
+@media print {
+
+  /* Hide interactive/unnecessary elements */
+  .print\:hidden,
+  button,
+  nav {
+    display: none !important;
+  }
+
+  /* Full Bleed PDF Layout */
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #09090b !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    width: 100% !important;
+  }
+
+  #root,
+  .h-screen,
+  main {
+    height: auto !important;
+    min-height: 100vh !important;
+    background: #09090b !important;
+    color: white !important;
+    overflow: visible !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Report Content Container in PDF */
+  .space-y-10 {
+    padding: 2rem !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .flex-1 {
+    overflow: visible !important;
+    height: auto !important;
+    display: block !important;
+  }
+
+  /* Force side-by-side grid in PDF */
+  .grid {
+    display: grid !important;
+    gap: 1.5rem !important;
+  }
+
+  .print\:grid-cols-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  .print\:grid-cols-2,
+  .print\:grid-cols-3,
+  .print\:grid-cols-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Ensure charts and colors are visible */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .bg-zinc-900,
+  .bg-zinc-900\/40 {
+    background-color: #18181b !important;
+  }
+
+  .bg-red-600 {
+    background-color: #CC0000 !important;
+  }
+
+  .text-white {
+    color: white !important;
+  }
+
+  .bg-white\/5 {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  /* Chart Stability - Allow labels to render */
+  .recharts-responsive-container {
+    overflow: visible !important;
+  }
+
+  /* Chart Height Stability for PDF - One per row */
+  .h-\[320px\],
+  .h-\[340px\],
+  .h-\[280px\] {
+    min-height: 300px !important;
+    height: 300px !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure Matrix table is usable in full width */
+  .lg\:col-span-2 {
+    grid-column: span 1 / span 1 !important;
+  }
+
+  /* Avoid page breaks inside cards */
+  .bg-zinc-900\/40,
+  .rounded-xl,
+  .grid>div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  }
+}
