@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { createWorker } from 'tesseract.js'
+import { logger } from '../utils/logger'
 
 // Polyfill DOMMatrix for pdf-parse in Node environment
 if (typeof global.DOMMatrix === 'undefined') {
@@ -42,13 +43,13 @@ export class DocumentParser {
                     // For now, we accept we can't OCR image-heavy PDFs easily in node without system dependencies
                     // or complex libs. 
                     // We could try tesseract on pdf if supported, but tesseract.js usually takes images.
-                    console.warn('PDF text is empty, likely scanned. Skipping OCR for PDF to avoid complex dependencies.')
+                    logger.warn('PDF text is empty, likely scanned. Skipping OCR for PDF.')
                 }
             } else if (['.png', '.jpg', '.jpeg', '.bmp', '.webp'].includes(ext)) {
                 text = await this.parseImage(filePath)
             }
         } catch (error) {
-            console.error('Error parsing document:', error)
+            logger.error('Error parsing document:', error)
         }
 
         return this.extractInfo(text)
@@ -78,7 +79,7 @@ export class DocumentParser {
         const lowerText = cleanText.toLowerCase()
 
         // Debug log (in memory or console)
-        console.log('Analyzed Text Sample:', lowerText.substring(0, 500))
+        logger.debug('Analyzed Text Sample:', lowerText.substring(0, 200))
 
         let type = '' // Default empty to strict check
         let number = ''
@@ -134,7 +135,7 @@ export class DocumentParser {
             }
         }
 
-        console.log(`Extracted: Type=${type}, Number=${number}, Supplier=${supplier}`)
+        logger.debug(`Extracted: Type=${type}, Number=${number}, Supplier=${supplier}`)
         return { type, number, supplier, rawText: text }
     }
 

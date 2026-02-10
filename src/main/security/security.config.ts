@@ -1,18 +1,22 @@
-import * as path from 'path';
-
 /**
  * Central configuration for the security core.
- * Adjust paths if the project structure changes.
+ * Paths are now set dynamically via initialize() calls on each module.
+ * This config provides shared constants only.
  */
 export const SecurityConfig = {
-    // Directory containing security artifacts (relative to this file)
-    baseDir: path.resolve(__dirname),
+    // Rate limiting
+    maxLoginAttempts: 5,
+    lockoutDurationMs: 15 * 60 * 1000, // 15 minutes
 
-    // Files used by the security modules
-    credentialFile: path.resolve(__dirname, 'credentials.json'),
-    sessionFile: path.resolve(__dirname, 'sessions.json'),
-    integrityManifestFile: path.resolve(__dirname, 'integrity.manifest.json'),
+    // Session defaults
+    defaultSessionTTL: 1000 * 60 * 60, // 1 hour
 
-    // Environment variable name for the encryption passphrase
-    cryptoPassphraseEnv: 'CRYPTO_PASSPHRASE',
-};
+    // Valid IPC collections (whitelist)
+    validCollections: ['orders', 'tasks', 'documents', 'suppliers', 'orderTemplates', 'orderHistory', 'settings'] as const
+}
+
+export type ValidCollection = typeof SecurityConfig.validCollections[number]
+
+export function isValidCollection(name: string): name is ValidCollection {
+    return (SecurityConfig.validCollections as readonly string[]).includes(name)
+}

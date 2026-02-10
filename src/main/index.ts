@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, Notification } from 'electron'
-import { join, extname, basename } from 'path'
+import { join, extname, basename, resolve as pathResolve } from 'path'
 import * as fs from 'fs'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import archiver from 'archiver'
 import { DatabaseManager } from './db'
 import { DocumentParser } from './services/DocumentParser'
@@ -9,7 +9,8 @@ import { CryptoEngine } from './security/crypto.engine'
 import { AuthLocal } from './security/auth.local'
 import { SessionManager } from './security/session.manager'
 import { IntegrityChecker } from './security/integrity.checker'
-import { SecurityConfig } from './security/security.config'
+import { isValidCollection } from './security/security.config'
+import { logger } from './utils/logger'
 
 
 let db: DatabaseManager
@@ -111,20 +112,16 @@ function showTaskNotification(task: Task): void {
             title: 'Hora da Tarefa!',
             body: `${task.title}${task.description ? ' - ' + task.description : ''}`
         })
-
-        // If window is focused, we might skip system notification to avoid double noise,
-        // but for now let's keep both or check strict requirement.
-        // User asked for "more beauty", so in-app is the key.
     }
 
     // 2. Show Native Notification (for background/minimized)
     if (!Notification.isSupported()) {
-        console.log('Notifications not supported on this system')
+        logger.warn('Notifications not supported on this system')
         return
     }
 
     const notification = new Notification({
-        title: 'Orbit', // Fixed title
+        title: 'Orbit',
         subtitle: 'Lembrete de Tarefa',
         body: `${task.title}\n${task.description || ''}`,
         icon: join(__dirname, '../../resources/icon.ico'),
@@ -133,11 +130,9 @@ function showTaskNotification(task: Task): void {
     })
 
     notification.on('click', () => {
-        // Focus the main window when clicking the notification
         if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore()
             mainWindow.focus()
-            // Navigate to tasks page if possible?
         }
     })
 
@@ -186,26 +181,19 @@ function checkTaskNotifications(): void {
 
                     // Show notification
                     showTaskNotification(task)
-                    console.log(`[Notification] Task: ${task.title} at ${task.startTime}`)
+                    logger.debug(`[Notification] Task: ${task.title} at ${task.startTime}`)
                 }
             }
         }
 
         // Clean old notification state (older than 24 hours)
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-        const yesterdayKey = yesterday.toISOString().split('T')[0]
-
         for (const key of Object.keys(notificationState)) {
-            if (key.includes(yesterdayKey) || !key.includes(todayKey)) {
-                // Keep only today's entries
-                if (!key.includes(todayKey)) {
-                    delete notificationState[key]
-                }
+            if (!key.includes(todayKey)) {
+                delete notificationState[key]
             }
         }
     } catch (error) {
-        console.error('Error checking task notifications:', error)
+        logger.error('Error checking task notifications:', error)
     }
 }
 
@@ -241,7 +229,7 @@ function createWindow(): void {
         icon: join(__dirname, '../../resources/icon.ico'),
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
-            sandbox: false
+            sandbox: true
         }
     })
 
@@ -268,22 +256,57 @@ function createWindow(): void {
     }
 }
 
+// Rate limiting state for login attempts
+const loginAttempts = new Map<string, { count: number; lastAttempt: number; lockedUntil: number }>()
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
+
+// Validate that IPC sender is the main window
+function validateSender(event: Electron.IpcMainInvokeEvent): boolean {
+    return event.sender === mainWindow?.webContents
+}
+
 // IPC Handlers
 function setupIPC() {
-    ipcMain.handle('db:get', (_, collection) => db.get(collection))
-    ipcMain.handle('db:set', (_, collection, data) => db.set(collection, data))
-    ipcMain.handle('db:add', (_, collection, item) => db.add(collection, item))
-    ipcMain.handle('db:update', (_, collection, id, updates) => db.update(collection, id, updates))
-    ipcMain.handle('db:delete', (_, collection, id) => db.delete(collection, id))
+    ipcMain.handle('db:get', (event, collection: string) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
+        if (!isValidCollection(collection)) throw new Error(`Invalid collection: ${collection}`)
+        return db.get(collection)
+    })
+    ipcMain.handle('db:set', (event, collection: string, data: unknown) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
+        if (!isValidCollection(collection)) throw new Error(`Invalid collection: ${collection}`)
+        if (data === null || data === undefined) throw new Error('Invalid data')
+        return db.set(collection, data)
+    })
+    ipcMain.handle('db:add', (event, collection: string, item: unknown) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
+        if (!isValidCollection(collection)) throw new Error(`Invalid collection: ${collection}`)
+        if (!item || typeof item !== 'object') throw new Error('Invalid item')
+        return db.add(collection, item)
+    })
+    ipcMain.handle('db:update', (event, collection: string, id: string, updates: unknown) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
+        if (!isValidCollection(collection)) throw new Error(`Invalid collection: ${collection}`)
+        if (!id || typeof id !== 'string') throw new Error('Invalid id')
+        return db.update(collection, id, updates)
+    })
+    ipcMain.handle('db:delete', (event, collection: string, id: string) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
+        if (!isValidCollection(collection)) throw new Error(`Invalid collection: ${collection}`)
+        if (!id || typeof id !== 'string') throw new Error('Invalid id')
+        return db.delete(collection, id)
+    })
 
     // File management handlers
-    ipcMain.handle('file:openOrderFolder', async (_, orderNumber: string) => {
+    ipcMain.handle('file:openOrderFolder', async (event, orderNumber: string) => {
+        if (!validateSender(event)) return null
         try {
             const folderPath = getOrderFolderPath(orderNumber)
             await shell.openPath(folderPath)
             return folderPath
         } catch (error) {
-            console.error('Error opening folder:', error)
+            logger.error('Error opening folder:', error)
             return null
         }
     })
@@ -317,11 +340,9 @@ function setupIPC() {
                 let finalName = filePath.split(/[\\/]/).pop() || ''
 
                 try {
-                    console.log(`Analyzing file: ${filePath}`)
+                    logger.debug(`Analyzing file: ${filePath}`)
                     const info = await docParser.parse(filePath)
 
-                    // Only rename if we found useful info (type + number OR type + supplier)
-                    // or if the user wants us to try our best.
                     if (info.type && (info.number || info.supplier)) {
                         const ext = extname(filePath)
                         const newName = docParser.generateFilename(info, ext)
@@ -337,7 +358,7 @@ function setupIPC() {
                         finalName = candidateName
                     }
                 } catch (e) {
-                    console.error('OCR/Parsing failed, using original name', e)
+                    logger.error('OCR/Parsing failed, using original name', e)
                 }
 
                 const destPath = join(orderFolder, finalName)
@@ -346,13 +367,13 @@ function setupIPC() {
                     fs.copyFileSync(filePath, destPath)
                     attachedFiles.push(finalName)
                 } catch (err) {
-                    console.error('Erro ao copiar arquivo:', err)
+                    logger.error('Erro ao copiar arquivo:', err)
                 }
             }
 
             return { success: true, files: attachedFiles }
         } catch (error) {
-            console.error('Error attaching files:', error)
+            logger.error('Error attaching files:', error)
             return { success: false, files: [] }
         }
     })
@@ -382,11 +403,10 @@ function setupIPC() {
             const attachedFiles: { name: string, path: string }[] = []
 
             for (const filePath of result.filePaths) {
-                // Parse document to get new name
                 let finalName = filePath.split(/[\\/]/).pop() || ''
 
                 try {
-                    console.log(`Analyzing file: ${filePath}`)
+                    logger.debug(`Analyzing file: ${filePath}`)
                     const info = await docParser.parse(filePath)
 
                     if (info.type && (info.number || info.supplier)) {
@@ -403,7 +423,7 @@ function setupIPC() {
                         finalName = candidateName
                     }
                 } catch (e) {
-                    console.error('OCR/Parsing failed, using original name', e)
+                    logger.error('OCR/Parsing failed, using original name', e)
                 }
 
                 const destPath = join(folderPath, finalName)
@@ -415,13 +435,13 @@ function setupIPC() {
                         path: destPath
                     })
                 } catch (err) {
-                    console.error('Erro ao copiar arquivo:', err)
+                    logger.error('Erro ao copiar arquivo:', err)
                 }
             }
 
             return { success: true, files: attachedFiles }
         } catch (error) {
-            console.error('Error attaching files:', error)
+            logger.error('Error attaching files:', error)
             return { success: false, files: [] }
         }
     })
@@ -439,11 +459,23 @@ function setupIPC() {
         }
     })
 
-    ipcMain.handle('file:openFile', async (_, filePath: string) => {
+    ipcMain.handle('file:openFile', async (event, filePath: string) => {
+        if (!validateSender(event)) return
         try {
-            await shell.openPath(filePath)
+            // Validate path is within allowed Orbit directories
+            const resolvedPath = pathResolve(filePath)
+            const allowedRoots = [
+                pathResolve(getOrdersFolderPath()),
+                pathResolve(join(documentsPath, 'Orbit'))
+            ]
+            const isAllowed = allowedRoots.some(root => resolvedPath.startsWith(root))
+            if (!isAllowed) {
+                logger.warn('Access denied: path outside allowed directories:', resolvedPath)
+                return
+            }
+            await shell.openPath(resolvedPath)
         } catch (error) {
-            console.error('Error opening file:', error)
+            logger.error('Error opening file:', error)
         }
     })
 
@@ -503,7 +535,7 @@ function setupIPC() {
                             }
                         }
                     } catch (e) {
-                        console.error(`Error reading attachments for ${orderNumber}:`, e)
+                        logger.error(`Error reading attachments for ${orderNumber}:`, e)
                     }
                 }
 
@@ -522,7 +554,7 @@ function setupIPC() {
 
             return { success: true, path: exportPath }
         } catch (error) {
-            console.error('Error exporting orders:', error)
+            logger.error('Error exporting orders:', error)
             return { success: false, path: null }
         }
     })
@@ -535,7 +567,7 @@ function setupIPC() {
             })
             return loginItemSettings.openAtLogin
         } catch (error) {
-            console.error('Error getting auto-start setting:', error)
+            logger.error('Error getting auto-start setting:', error)
             return false
         }
     })
@@ -544,18 +576,17 @@ function setupIPC() {
         try {
             // Check if running in production mode
             if (!app.isPackaged) {
-                console.log('Auto-start not available in development mode')
+                logger.info('Auto-start not available in development mode')
                 return { success: false, reason: 'development' }
             }
 
-            // Check if it's a portable version (no installation)
             const exePath = app.getPath('exe')
             const isPortable = exePath.toLowerCase().includes('portable') ||
                 !exePath.toLowerCase().includes('program') &&
                 !exePath.toLowerCase().includes('appdata')
 
             if (isPortable) {
-                console.log('Auto-start may not work properly in portable mode')
+                logger.info('Auto-start may not work properly in portable mode')
             }
 
             app.setLoginItemSettings({
@@ -564,14 +595,13 @@ function setupIPC() {
                 args: []
             })
 
-            // Verify if it was actually set
             const settings = app.getLoginItemSettings({ path: exePath })
             const actuallySet = settings.openAtLogin === enabled
 
-            console.log(`Auto-start ${enabled ? 'enabled' : 'disabled'}, verified: ${actuallySet}`)
+            logger.info(`Auto-start ${enabled ? 'enabled' : 'disabled'}, verified: ${actuallySet}`)
             return { success: actuallySet, reason: actuallySet ? null : 'registry_failed' }
         } catch (error) {
-            console.error('Error setting auto-start:', error)
+            logger.error('Error setting auto-start:', error)
             return { success: false, reason: 'error' }
         }
     })
@@ -583,7 +613,7 @@ function setupIPC() {
             // Default to true if not set
             return settings.notificationsEnabled !== false
         } catch (error) {
-            console.error('Error getting notifications setting:', error)
+            logger.error('Error getting notifications setting:', error)
             return true
         }
     })
@@ -592,12 +622,11 @@ function setupIPC() {
         try {
             const settings = db.get('settings') || {}
             settings.notificationsEnabled = enabled
-            // Save as a special update to settings
             db.update('settings', 'config', { notificationsEnabled: enabled })
-            console.log(`Notifications ${enabled ? 'enabled' : 'disabled'}`)
+            logger.info(`Notifications ${enabled ? 'enabled' : 'disabled'}`)
             return true
         } catch (error) {
-            console.error('Error setting notifications:', error)
+            logger.error('Error setting notifications:', error)
             return false
         }
     })
@@ -629,7 +658,7 @@ function setupIPC() {
             notification.show()
             return { success: true, message: 'Notificação de teste enviada!' }
         } catch (error) {
-            console.error('Error testing notification:', error)
+            logger.error('Error testing notification:', error)
             return { success: false, message: 'Erro ao enviar notificação de teste' }
         }
     })
@@ -639,7 +668,7 @@ function setupIPC() {
             const settings = db.get('settings') || {}
             return settings.backupSchedule || '18:00'
         } catch (error) {
-            console.error('Error getting backup schedule:', error)
+            logger.error('Error getting backup schedule:', error)
             return '18:00'
         }
     })
@@ -651,7 +680,7 @@ function setupIPC() {
             db.update('settings', 'config', { backupSchedule: time })
             return true
         } catch (error) {
-            console.error('Error setting backup schedule:', error)
+            logger.error('Error setting backup schedule:', error)
             return false
         }
     })
@@ -666,9 +695,9 @@ function setupIPC() {
                 nodeVersion: process.versions.node || '-'
             }
         } catch (error) {
-            console.error('Error getting version info:', error)
+            logger.error('Error getting version info:', error)
             return {
-                appVersion: app.getVersion() || '1.3.0',
+                appVersion: app.getVersion() || '1.5.0',
                 electronVersion: '-',
                 chromeVersion: '-',
                 nodeVersion: '-'
@@ -686,7 +715,7 @@ function setupIPC() {
                 time: settings.weeklyReportTime || '08:00'
             }
         } catch (error) {
-            console.error('Error getting weekly report schedule:', error)
+            logger.error('Error getting weekly report schedule:', error)
             return { enabled: false, day: '1', time: '08:00' }
         }
     })
@@ -698,10 +727,10 @@ function setupIPC() {
                 weeklyReportDay: schedule.day,
                 weeklyReportTime: schedule.time
             })
-            console.log(`Weekly report schedule updated: ${schedule.day} at ${schedule.time}, enabled: ${schedule.enabled}`)
+            logger.info(`Weekly report schedule updated: ${schedule.day} at ${schedule.time}, enabled: ${schedule.enabled}`)
             return true
         } catch (error) {
-            console.error('Error setting weekly report schedule:', error)
+            logger.error('Error setting weekly report schedule:', error)
             return false
         }
     })
@@ -711,7 +740,7 @@ function setupIPC() {
         try {
             return db.getPath()
         } catch (error) {
-            console.error('Error getting database path:', error)
+            logger.error('Error getting database path:', error)
             return null
         }
     })
@@ -740,7 +769,7 @@ function setupIPC() {
                 return { success: false, path: null, error: 'Falha ao mover o banco de dados' }
             }
         } catch (error) {
-            console.error('Error selecting database folder:', error)
+            logger.error('Error selecting database folder:', error)
             return { success: false, path: null, error: String(error) }
         }
     })
@@ -754,97 +783,135 @@ function setupIPC() {
                 return { success: false, error: 'Falha ao resetar o banco de dados' }
             }
         } catch (error) {
-            console.error('Error resetting database path:', error)
+            logger.error('Error resetting database path:', error)
             return { success: false, error: String(error) }
         }
     })
 
     // Security IPC Handlers
-    ipcMain.handle('security:encrypt', (_, plainText: string) => {
+    ipcMain.handle('security:encrypt', (event, plainText: string) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
         try {
             return CryptoEngine.encrypt(plainText)
         } catch (error) {
-            console.error('Encryption error:', error)
+            logger.error('Encryption error:', error)
             throw error
         }
     })
 
-    ipcMain.handle('security:decrypt', (_, payload: { iv: string; authTag: string; data: string }) => {
+    ipcMain.handle('security:decrypt', (event, payload: { iv: string; authTag: string; data: string }) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
         try {
             return CryptoEngine.decrypt(payload)
         } catch (error) {
-            console.error('Decryption error:', error)
+            logger.error('Decryption error:', error)
             throw error
         }
     })
 
-    ipcMain.handle('security:storeCredential', (_, username: string, password: string) => {
+    ipcMain.handle('security:storeCredential', (event, username: string, password: string) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
         try {
             AuthLocal.storeCredential(username, password)
         } catch (error) {
-            console.error('Store credential error:', error)
+            logger.error('Store credential error:', error)
             throw error
         }
     })
 
-    ipcMain.handle('security:validateCredential', (_, username: string, password: string) => {
+    ipcMain.handle('security:validateCredential', (event, username: string, password: string) => {
+        if (!validateSender(event)) return false
         try {
-            return AuthLocal.validateCredential(username, password)
+            // Rate limiting: check if account is locked
+            const now = Date.now()
+            const attempts = loginAttempts.get(username)
+
+            if (attempts && now < attempts.lockedUntil) {
+                logger.warn(`Login attempt blocked (account locked): ${username}`)
+                return false
+            }
+
+            const valid = AuthLocal.validateCredential(username, password)
+
+            if (!valid) {
+                const current = loginAttempts.get(username) || { count: 0, lastAttempt: 0, lockedUntil: 0 }
+                current.count++
+                current.lastAttempt = now
+
+                if (current.count >= MAX_LOGIN_ATTEMPTS) {
+                    current.lockedUntil = now + LOCKOUT_DURATION_MS
+                    current.count = 0
+                    logger.warn(`Account locked due to excessive failed attempts: ${username}`)
+                }
+
+                loginAttempts.set(username, current)
+                return false
+            }
+
+            // Successful login: clear attempts
+            loginAttempts.delete(username)
+            return true
         } catch (error) {
-            console.error('Validate credential error:', error)
+            logger.error('Validate credential error:', error)
             return false
         }
     })
 
-    ipcMain.handle('security:createSession', (_, userId: string, ttlMs?: number) => {
+    ipcMain.handle('security:createSession', (event, userId: string, ttlMs?: number) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
         try {
             return SessionManager.createSession(userId, ttlMs)
         } catch (error) {
-            console.error('Create session error:', error)
+            logger.error('Create session error:', error)
             throw error
         }
     })
 
-    ipcMain.handle('security:validateSession', (_, userId: string, token: string) => {
+    ipcMain.handle('security:validateSession', (event, userId: string, token: string) => {
+        if (!validateSender(event)) return false
         try {
             return SessionManager.validateSession(userId, token)
         } catch (error) {
-            console.error('Validate session error:', error)
+            logger.error('Validate session error:', error)
             return false
         }
     })
 
-    ipcMain.handle('security:invalidateSession', (_, userId: string) => {
+    ipcMain.handle('security:invalidateSession', (event, userId: string) => {
+        if (!validateSender(event)) return
         try {
             SessionManager.invalidateSession(userId)
         } catch (error) {
-            console.error('Invalidate session error:', error)
+            logger.error('Invalidate session error:', error)
         }
     })
 
-    ipcMain.handle('security:registerFile', (_, filePath: string) => {
+    ipcMain.handle('security:registerFile', (event, filePath: string) => {
+        if (!validateSender(event)) throw new Error('Unauthorized')
         try {
             IntegrityChecker.registerFile(filePath)
         } catch (error) {
-            console.error('Register file error:', error)
+            logger.error('Register file error:', error)
             throw error
         }
     })
 
-    ipcMain.handle('security:validateFile', (_, filePath: string) => {
+    ipcMain.handle('security:validateFile', (event, filePath: string) => {
+        if (!validateSender(event)) return false
         try {
             return IntegrityChecker.validateFile(filePath)
         } catch (error) {
-            console.error('Validate file error:', error)
+            logger.error('Validate file error:', error)
             return false
         }
     })
 
-    ipcMain.handle('security:validateAll', () => {
+    ipcMain.handle('security:validateAll', (event) => {
+        if (!validateSender(event)) return []
         try {
             return IntegrityChecker.validateAll()
         } catch (error) {
-            console.error('Validate all error:', error)
+            logger.error('Validate all error:', error)
             return []
         }
     })
@@ -861,7 +928,8 @@ function setupIPC() {
         return sapPath
     }
 
-    ipcMain.handle('sap:listScripts', async () => {
+    ipcMain.handle('sap:listScripts', async (event) => {
+        if (!validateSender(event)) return []
         try {
             const scriptsPath = getSapScriptsPath()
             if (!fs.existsSync(scriptsPath)) {
@@ -870,36 +938,54 @@ function setupIPC() {
             const files = fs.readdirSync(scriptsPath)
             return files.filter(f => f.endsWith('.vbs')).map(f => f.replace('.vbs', ''))
         } catch (error) {
-            console.error('Error listing SAP scripts:', error)
+            logger.error('Error listing SAP scripts:', error)
             return []
         }
     })
 
-    ipcMain.handle('sap:executeScript', async (_, scriptName: string, params: string[]) => {
+    ipcMain.handle('sap:executeScript', async (event, scriptName: string, params: string[]) => {
+        if (!validateSender(event)) return { error: 'Unauthorized' }
+
+        // Validate script name: only alphanumeric, underscore, hyphen
+        if (!/^[a-zA-Z0-9_-]+$/.test(scriptName)) {
+            return { error: 'Nome de script inválido' }
+        }
+
         const scriptsPath = getSapScriptsPath()
         const scriptPath = join(scriptsPath, `${scriptName}.vbs`)
 
-        if (!fs.existsSync(scriptPath)) {
+        // Validate resolved path is within allowed directory (prevent path traversal)
+        const resolvedScriptPath = pathResolve(scriptPath)
+        if (!resolvedScriptPath.startsWith(pathResolve(scriptsPath))) {
+            return { error: 'Caminho de script inválido' }
+        }
+
+        if (!fs.existsSync(resolvedScriptPath)) {
             return { error: `Script não encontrado: ${scriptName}.vbs` }
         }
 
-        const paramsStr = params.map(p => `"${p}"`).join(' ')
-        const command = `cscript //nologo "${scriptPath}" ${paramsStr}`
+        // Sanitize params: remove any shell metacharacters
+        const safeParams = params.map(p => p.replace(/["'`$\\;&|<>(){}\[\]!^~]/g, ''))
 
+        // Use execFile instead of exec to prevent command injection
         return new Promise((resolve) => {
-            exec(command, { timeout: 60000 }, (error: any, stdout: string, stderr: string) => {
-                if (error) {
-                    console.error('SAP script error:', error)
-                    resolve({ error: stderr || error.message || 'Erro na execução do script' })
-                } else {
-                    resolve({ output: stdout || 'Script executado com sucesso' })
+            execFile('cscript', ['//nologo', resolvedScriptPath, ...safeParams],
+                { timeout: 60000 },
+                (error: any, stdout: string, stderr: string) => {
+                    if (error) {
+                        logger.error('SAP script error:', error)
+                        resolve({ error: stderr || error.message || 'Erro na execução do script' })
+                    } else {
+                        resolve({ output: stdout || 'Script executado com sucesso' })
+                    }
                 }
-            })
+            )
         })
     })
 
-    ipcMain.handle('sap:checkConnection', async () => {
-        // Create a temporary check script
+    ipcMain.handle('sap:checkConnection', async (event) => {
+        if (!validateSender(event)) return { connected: false }
+
         const checkScript = `
 On Error Resume Next
 Set SapGuiAuto = GetObject("SAPGUI")
@@ -927,17 +1013,20 @@ WScript.Echo "CONNECTED"
         const tempScriptPath = join(scriptsPath, '_check_connection.vbs')
         fs.writeFileSync(tempScriptPath, checkScript)
 
+        // Use execFile instead of exec to prevent shell injection
         return new Promise((resolve) => {
-            exec(`cscript //nologo "${tempScriptPath}"`, { timeout: 10000 }, (error: any, stdout: string) => {
-                // Clean up temp script
-                try { fs.unlinkSync(tempScriptPath) } catch { }
+            execFile('cscript', ['//nologo', tempScriptPath],
+                { timeout: 10000 },
+                (error: any, stdout: string) => {
+                    try { fs.unlinkSync(tempScriptPath) } catch { }
 
-                if (error || !stdout.includes('CONNECTED')) {
-                    resolve({ connected: false })
-                } else {
-                    resolve({ connected: true })
+                    if (error || !stdout.includes('CONNECTED')) {
+                        resolve({ connected: false })
+                    } else {
+                        resolve({ connected: true })
+                    }
                 }
-            })
+            )
         })
     })
 }
@@ -946,8 +1035,12 @@ app.whenReady().then(() => {
     // Initialize documents path after app is ready
     documentsPath = app.getPath('documents')
 
-    // Initialize security modules
-    CryptoEngine.initialize(app.getPath('userData'))
+    const userDataPath = app.getPath('userData')
+
+    // Initialize all security modules with secure paths
+    CryptoEngine.initialize(userDataPath)
+    AuthLocal.initialize(userDataPath)
+    SessionManager.initialize(userDataPath)
 
     // Initialize database AFTER app is ready
     db = new DatabaseManager()
@@ -977,9 +1070,8 @@ app.whenReady().then(() => {
             const backupFile = join(backupsDir, `backup_${timestamp}.json`)
 
             fs.copyFileSync(dbPath, backupFile)
-            console.log(`Backup created: ${backupFile}`)
+            logger.info(`Backup created: ${backupFile}`)
 
-            // Notify user
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('notification:show', {
                     title: 'Backup Realizado',
@@ -989,7 +1081,7 @@ app.whenReady().then(() => {
 
             return true
         } catch (error) {
-            console.error('Backup failed:', error)
+            logger.error('Backup failed:', error)
             return false
         }
     }

@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { join, dirname } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { randomUUID } from 'crypto'
+import { logger } from './utils/logger'
 
 export interface DatabaseSchema {
     orders: any[]
@@ -28,7 +29,7 @@ export function getCustomDbPath(): string | null {
             return config.customDbPath || null
         }
     } catch (error) {
-        console.error('Failed to read config:', error)
+        logger.error('Failed to read config:', error)
     }
     return null
 }
@@ -44,7 +45,7 @@ export function setCustomDbPath(newPath: string | null): boolean {
         writeFileSync(configPath, JSON.stringify(config, null, 2))
         return true
     } catch (error) {
-        console.error('Failed to save config:', error)
+        logger.error('Failed to save config:', error)
         return false
     }
 }
@@ -69,7 +70,7 @@ export class DatabaseManager {
             this.path = getCurrentDbPath()
         }
 
-        console.log('Database path:', this.path)
+        logger.debug('Database path:', this.path)
 
         // Initialize default data structure
         this.data = {
@@ -108,7 +109,7 @@ export class DatabaseManager {
 
             return true
         } catch (error) {
-            console.error('Failed to change database path:', error)
+            logger.error('Failed to change database path:', error)
             return false
         }
     }
@@ -128,7 +129,7 @@ export class DatabaseManager {
 
             return true
         } catch (error) {
-            console.error('Failed to reset database path:', error)
+            logger.error('Failed to reset database path:', error)
             return false
         }
     }
@@ -165,7 +166,7 @@ export class DatabaseManager {
                 this.save()
             }
         } catch (error) {
-            console.error('Failed to initialize database:', error)
+            logger.error('Failed to initialize database:', error)
         }
     }
 
@@ -173,7 +174,7 @@ export class DatabaseManager {
         try {
             writeFileSync(this.path, JSON.stringify(this.data, null, 2))
         } catch (error) {
-            console.error('Failed to save database:', error)
+            logger.error('Failed to save database:', error)
         }
     }
 
